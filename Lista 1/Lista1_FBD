@@ -1,0 +1,90 @@
+1)
+
+ALTER TABLE historico DROP CONSTRAINT fkhistoricoestoque
+ALTER TABLE historico ADD CONSTRAINT Fk_Historico_Estoque FOREIGN KEY (coditem) REFERENCES estoque ON DELETE NO ACTION ON UPDATE CASCADE
+
+2)
+
+ALTER TABLE Historico DROP CONSTRAINT fkhistoricovendedor
+ALTER TABLE filiais DROP CONSTRAINT fkfiliaisgerente
+ALTER TABLE vendedor DROP CONSTRAINT vendedor_pkey
+ALTER TABLE Vendedor ADD CONSTRAINT PK_Vendedor PRIMARY KEY (cpf)
+ALTER TABLE Historico ADD CONSTRAINT fkhistoricovendedor FOREIGN KEY mat_vendedor REFERENCES vendedor ON DELETE CASCADE ON UPDATE NO ACTION
+ALTER TABLE filiais ADD CONSTRAINT fkfiliaisgerente FOREIGN KEY mat_gerente REFERENCES vendedor ON DELETE CASCADE ON UPDATE NO ACTION
+
+3) Implementar em Algebra Relacional/Calculo Relacional esses itens:
+
+a) SELECT f.nome as "Nome Fornecedor", v.nome as "Nome Vendedor" 
+FROM fornecedor f, estoque e, vendedor v, historico h
+WHERE cod_fornecedor=cod_for and cod_estoque=coditem and h.mat_vendedor=v.mat_vendedor
+
+πfornecedor.nome,vendedor.nome(fornecedor|X|estoque|X|historico|x|vendedor)
+
+b) SELECT f.cod_fornecedor
+FROM fornecedor f
+WHERE NOT EXISTS
+( (SELECT e.cod_estoque
+   FROM estoque e
+   WHERE e.cod_for=f.cod_fornecedor)
+   INTERSECT
+  (SELECT coditem
+   FROM historico)
+)
+f[cod] | f E fornecedor ^ ~E X ^ (e[cod] | e E estoque ^ f E fornecedor (e[cod_for]=f[cod_for])) INTER h[coditem] | h E historico) E X
+
+4)
+
+a) select f.nome 
+from fornecedor f 
+where cod_fornecedor=((select cod_fornecedor from fornecedor 
+where cidade like '%leza')
+EXCEPT
+(select e.cod_for 
+from historico h,estoque e 
+where e.cod_estoque=h.coditem))
+
+b) select v.nome 
+from vendedor v
+where v.mat_vendedor not in 
+(select distinct h.mat_vendedor 
+from historico h)
+
+5)
+
+a) SELECT f.nome as "Nome Fornecedor" 
+FROM fornecedor f, estoque e, historico h
+WHERE cod_fornecedor=cod_for and cod_estoque=coditem GROUP BY f.nome,cod_for HAVING sum(h.qntd)>=all(SELECT sum(h.qntd) 
+FROM historico h, fornecedor f, estoque e 
+WHERE cod_fornecedor=cod_for and cod_estoque=coditem GROUP BY f.nome,cod_for)
+
+b)SELECT v.nome as "Nome Vendedor"
+FROM vendedor v, filiais f
+WHERE v.codfil=f.cod_filial and v.salario>=(SELECT avg(salario) 
+FROM vendedor j
+WHERE v.codfil = j.codfil)
+
+c)SELECT v.nome as "Nome Vendedor"
+FROM vendedor v
+WHERE v.salario>=all(SELECT avg(salario) 
+FROM vendedor
+GROUP BY codfil)
+
+d)SELECT f.nome as "Nome Fornecedor", sum(h.qntd)
+FROM fornecedor f, estoque e, historico h
+WHERE cod_fornecedor=cod_for and cod_estoque=coditem
+GROUP BY f.nome,cod_fornecedor ORDER BY 2 desc
+
+e)SELECT f.nome 	
+FROM fornecedor f,estoque
+WHERE cod_fornecedor=cod_for and cod_estoque=(SELECT cod_estoque
+FROM estoque
+WHERE NOT EXISTS 
+( (SELECT v.mat_vendedor 
+   FROM vendedor v)
+   EXCEPT
+  (SELECT h.mat_vendedor
+   FROM historico h
+   WHERE estoque.cod_estoque=h.coditem)
+))
+
+
